@@ -1,4 +1,4 @@
-import { ALERGENOS, AVISO_CARTA, EJEMPLO, MAX_PLATOS, lineaPlato, normalizarCarta, porSecciones } from './alergenos.mjs';
+import { ALERGENOS, AVISO_CARTA, AVISO_CARTA_EN, EJEMPLO, MAX_PLATOS, normalizarCarta, porSecciones, textoCarta } from './alergenos.mjs';
 import { conectarRecordar, copiar, fechaLarga, h, hoyISO, memoria } from './ui.mjs';
 
 const $ = id => document.getElementById(id);
@@ -50,8 +50,10 @@ function pintarFormulario() {
 
 function hojaTabla(carta) {
   const fecha = fechaLarga(hoyISO());
-  const cabecera = h('tr', {}, h('th', { scope: 'col', class: 'col-plato' }, 'Plato'),
-    ALERGENOS.map(a => h('th', { scope: 'col', class: 'col-al', title: a.nombre }, h('span', { class: 'vertical' }, a.nombre), h('span', { class: 'abbr' }, a.corto))));
+  const bi = carta.bilingue;
+  const cabecera = h('tr', {}, h('th', { scope: 'col', class: 'col-plato' }, 'Plato', bi ? [' · ', h('span', { lang: 'en' }, 'Dish')] : null),
+    ALERGENOS.map(a => h('th', { scope: 'col', class: 'col-al', title: bi && a.en !== a.nombre ? `${a.nombre} · ${a.en}` : a.nombre },
+      h('span', { class: 'vertical' }, a.nombre, bi && a.en !== a.nombre ? [' · ', h('span', { lang: 'en' }, a.en)] : null), h('span', { class: 'abbr' }, a.corto))));
   const filas = [];
   for (const grupo of porSecciones(carta.platos)) {
     if (grupo.seccion) filas.push(h('tr', { class: 'seccion' }, h('th', { colspan: 15, scope: 'colgroup' }, grupo.seccion)));
@@ -65,11 +67,12 @@ function hojaTabla(carta) {
     }
   }
   return h('section', { class: 'hoja', 'aria-label': 'Tabla de alérgenos para imprimir' },
-    h('header', { class: 'hoja-cab' }, h('h3', {}, 'Información sobre alérgenos'), h('p', {}, carta.local || 'Nombre del local')),
+    h('header', { class: 'hoja-cab' }, h('h3', {}, 'Información sobre alérgenos', bi ? [' · ', h('span', { lang: 'en' }, 'Allergen information')] : null), h('p', {}, carta.local || 'Nombre del local')),
     h('div', { class: 'desliza' }, h('table', { class: 'tabla-al' }, h('thead', {}, cabecera), h('tbody', {}, filas))),
-    h('p', { class: 'leyenda' }, h('strong', {}, '●'), ' contiene · ', h('strong', {}, 'T'), ' puede contener trazas'),
-    h('ul', { class: 'leyenda-lista' }, ALERGENOS.map(a => h('li', {}, h('strong', {}, a.corto), ` ${a.detalle}.`))),
-    h('p', { class: 'pie-hoja' }, `${AVISO_CARTA} Información elaborada por el establecimiento. Actualizada el ${fecha}.`));
+    h('p', { class: 'leyenda' }, h('strong', {}, '●'), ' contiene', bi ? [' / ', h('span', { lang: 'en' }, 'contains')] : null, ' · ', h('strong', {}, 'T'), ' puede contener trazas', bi ? [' / ', h('span', { lang: 'en' }, 'may contain traces')] : null),
+    h('ul', { class: 'leyenda-lista' }, ALERGENOS.map(a => h('li', {}, h('strong', {}, a.corto), ` ${a.detalle}.`, bi ? h('span', { class: 'en', lang: 'en' }, ` ${a.detalleEn}.`) : null))),
+    h('p', { class: 'pie-hoja' }, `${AVISO_CARTA} Información elaborada por el establecimiento. Actualizada el ${fecha}.`),
+    bi ? h('p', { class: 'pie-hoja', lang: 'en' }, `${AVISO_CARTA_EN} Information provided by the establishment.`) : null);
 }
 
 function hojaCartel(carta) {
@@ -77,6 +80,9 @@ function hojaCartel(carta) {
     h('p', { class: 'cartel-titulo' }, 'Alergias e intolerancias alimentarias'),
     h('p', { class: 'cartel-texto' }, 'Si tiene alguna alergia o intolerancia, consulte al personal.'),
     h('p', { class: 'cartel-sub' }, 'Le informaremos de los alérgenos de cada plato. Tenemos la información por escrito a su disposición.'),
+    carta.bilingue ? h('div', { class: 'cartel-en', lang: 'en' },
+      h('p', { class: 'cartel-texto' }, 'Food allergies or intolerances? Please ask our staff.'),
+      h('p', { class: 'cartel-sub' }, 'We will tell you the allergens in each dish. The information is available in writing.')) : null,
     h('p', { class: 'cartel-local' }, carta.local || ''));
 }
 
@@ -87,7 +93,7 @@ function actualizar() {
   else hojas.push(h('p', { class: 'vacio' }, 'Escribe al menos un plato para ver la tabla.'));
   if ($('con-cartel').checked) hojas.push(hojaCartel(carta));
   $('hojas').replaceChildren(...hojas);
-  $('texto-carta').value = [AVISO_CARTA, '', ...carta.platos.map(lineaPlato)].join('\n');
+  $('texto-carta').value = textoCarta(carta, carta.bilingue);
   $('imprimir').disabled = carta.platos.length === 0 && !$('con-cartel').checked;
   guardar();
 }
@@ -102,14 +108,16 @@ $('anadir').addEventListener('click', () => {
 });
 $('ejemplo').addEventListener('click', () => {
   if (normalizarCarta(estado).platos.length && !window.confirm('¿Sustituir tus platos por el ejemplo?')) return;
-  estado = normalizarCarta(EJEMPLO); $('local').value = estado.local; pintarFormulario(); actualizar();
+  estado = { ...normalizarCarta(EJEMPLO), bilingue: estado.bilingue }; $('local').value = estado.local; pintarFormulario(); actualizar();
 });
 $('vaciar').addEventListener('click', () => {
   if (!window.confirm('¿Borrar todos los platos?')) return;
-  estado = { local: estado.local, platos: [{ nombre: '', seccion: '', alergenos: [], trazas: [] }] };
+  estado = { local: estado.local, bilingue: estado.bilingue, platos: [{ nombre: '', seccion: '', alergenos: [], trazas: [] }] };
   pintarFormulario(); actualizar();
 });
 $('con-cartel').addEventListener('change', actualizar);
+$('bilingue').checked = estado.bilingue === true;
+$('bilingue').addEventListener('change', e => { estado.bilingue = e.target.checked; actualizar(); });
 $('copiar').addEventListener('click', e => copiar($('texto-carta').value, e.currentTarget));
 $('imprimir').addEventListener('click', () => window.print());
 pintarFormulario();
