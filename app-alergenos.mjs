@@ -1,3 +1,4 @@
+import './sin-conexion.mjs';
 import { ALERGENOS, AVISO_CARTA, AVISO_CARTA_EN, EJEMPLO, MAX_PLATOS, normalizarCarta, porSecciones, textoCarta } from './alergenos.mjs';
 import { conectarRecordar, copiar, fechaLarga, h, hoyISO, memoria } from './ui.mjs';
 

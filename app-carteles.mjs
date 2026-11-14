@@ -1,3 +1,4 @@
+import './sin-conexion.mjs';
 import { encodeQR, qrSvgPath, qrSvgString } from './qr.mjs';
 import { enlaceResena, textoWifi } from './carteles.mjs';
 import { conectarRecordar, descargar, h, memoria, svg } from './ui.mjs';

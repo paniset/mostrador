@@ -1,3 +1,4 @@
+import './sin-conexion.mjs';
 import { DIAS_SEMANA, EJEMPLO, INICIALES, MESES, UMBRAL_POLARES, diaSemana, diasDelMes, diasPrevistos, paginar, paginarEquipos, rotuloFrecuencia, rotuloRango, validarEquipo } from './appcc.mjs';
 import { conectarRecordar, h, memoria } from './ui.mjs';
 
